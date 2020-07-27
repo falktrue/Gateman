@@ -1,0 +1,109 @@
+#!/usr/bin/python
+import re
+import ipaddress
+
+# Dropping some goodies
+Parse_ipv6 = []
+VLAN = []
+VRF = []
+Compute = []
+Port = []
+Gateway = []
+Unit = []
+VRF = []
+
+
+# Regex madness
+relevant_vrf = re.compile(r"(SGI_VoLTE|INTERNET|SGI|APN-UNICA)", re.IGNORECASE)
+is_loop = re.compile(r"(loopback.)", re.IGNORECASE)
+is_spine = re.compile(r"(agg|spine)", re.IGNORECASE)
+RE_vlan = re.compile(r"(?<=vlan).*$", re.IGNORECASE)
+RE_slash = re.compile(r"^(.*?)/")
+
+print('Suas Compute Units "High Performance" refletem o número de "slots" deste SAE-GW.')
+while True:
+    try:
+        HP_qty = int(input("Entre com o número de HPs: "))
+    except ValueError:
+        print("Sorry. Remove boxing gloves")
+        continue
+    if HP_qty < 0:
+        print("Sorry, don't be negative.")
+        continue
+    if HP_qty == 0:
+        print("99 problemas, mas a compute não é 1.")
+        continue
+    else:
+        break
+print('Seu SAE-GW típico utiliza 3 VRFs para IPv6 (SGI, APN-UNICA, SGI_VoLTE).')
+VRF_qty = None
+VRF_qty = 9 if VRF_qty is None else VRF_qty
+while True:
+    try:
+        VRF_qty = int(input("Entre com o número de VRFs: "))
+    except ValueError:
+        print("Assumindo 9 VRFs. \n")
+        break
+    else:
+        break
+
+# Reads your file. Call Mauricio, get your IPs,
+# copy and paste into source.txt. Use join or else
+# it creates a list of lists for some stupid fucking reason
+
+with open('/home/falk/sourcev6.txt') as myfile:
+    for line in myfile.readlines():
+        match_vrf = re.findall(relevant_vrf, line)
+        match_vlan = re.findall(RE_vlan, line)
+        match_ipv6 = re.findall(RE_slash, line)
+        if relevant_vrf.search(line) and not is_loop.search(line) and not is_spine.search(line):
+            VRF.append(''.join(match_vrf))
+            VLAN.append(''.join(match_vlan))
+            Parse_ipv6.append(''.join(match_ipv6))
+
+# Clean up bullshit empty values
+VRF = list(filter(None,VRF))
+VLAN = list(filter(None,VLAN))
+VLAN = ' '.join(VLAN).replace('','').split()
+
+for c in (Parse_ipv6):
+    Gateway_cont = str(ipaddress.ip_address(c) + 1)
+    Gateway.append(Gateway_cont)
+
+while True:
+    try:
+        for b in (Parse_ipv6):
+            for x in range (2, HP_qty+2):
+                Compute_cont = str(ipaddress.ip_address(b)+x)
+                Compute.append(Compute_cont)
+    except ValueError:
+        print('yob tvuyo mat')
+        break
+    else:
+        break
+
+for y in range(VRF_qty):
+    u = 3
+    for x in range(3, (HP_qty + 3)):
+        A_side = (str(u) + '/10')
+        u = u + 1
+        Port.append(A_side)
+        Unit.append('card-'+str(u-1))
+    u = 3
+    for y in range(3, (HP_qty + 3)):
+        B_side = (str(u) + '/11')
+        u = u + 1
+        Port.append(B_side)
+        Unit.append('card-'+str(u-1))
+
+VRF = [y for x in VRF for y in (x,)* (HP_qty * 2)]
+VLAN = [y for x in VLAN for y in (x,)* (HP_qty)]
+Interface = list(map('-'.join, zip(Port,VRF)))
+Gateway = [y for x in Gateway for y in (x,)* (HP_qty)]
+
+with open("/home/falk/CIQ6.csv", "w") as o:
+    print('VRF;Interface;Unit;Port;Type;VLAN;IPv4 Address;Netmask;Gateway', file=o)
+    for a,b,c,d,e,f,g in zip(VRF,Interface,Unit,Port,VLAN,Compute,Gateway):
+        print (a + ';' + b + ';' + c + ';' + d + ';logical;' + e + ';' + f + ';/123;' + g, file=o)
+
+print('Done, son.')
