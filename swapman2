@@ -1,22 +1,57 @@
 #!/usr/bin/python
 import re
+intf_suffix = ['_lte-vlan1', '_lte-vlan2', '_s1-u-vlan1', '_s1-u-vlan2', '_li-vlan1', '_li-vlan2', '_sgi-vlan1', '_sgi-vlan2', '_sgi-v6_vlan1', '_sgi-v6_vlan2', '_sgi_volte-vlan1', '_sgi_volte-vlan2', '_sgi_volte-v6_vlan1', '_sgi_volte-v6_vlan2', '_orion_vlan1', '_orion_vlan2', '_lte-loop', '_pgw-s5-up-loop', '_sgw-s5-up-loop', '_sx-c-up-loop', '_sx-u-up-loop', '_s1u-loop', '_Li-loop', '_sgi-loop', '_sgi_volte-loop', '_orion-loop']
+intf_list = []
+p_side = []
+card = []
 
-listafrom = ['upf1_lte-vlan1', 'upf1_lte-vlan2', 'upf1_s1-u-vlan1', 'upf1_s1-u-vlan2', 'upf1_li-vlan1', 'upf1_li-vlan2', 'upf1_sgi-vlan1', 'upf1_sgi-vlan2', 'upf1_sgi-v6_vlan1', 'upf1_sgi-v6_vlan2', 'upf1_sgi_volte-vlan1', 'upf1_sgi_volte-v6_vlan1', 'upf1_sgi_volte-vlan2', 'upf1_sgi_volte-v6_vlan2', 'upf1_orion_vlan1', 'upf1_orion_vlan2', 'upf1_lte-loop', 'upf1_pgw-s5-up-loop', 'upf1_sgw-s5-up-loop', 'upf1_sx-c-up-loop', 'upf1_sx-u-up-loop', 'upf1_s1u-loop', 'upf1_Li-loop', 'upf1_sgi-loop', 'upf1_sgi_volte-loop', 'upf1_orion-loop']
-listato = ['10.191.67.66', '10.191.67.67', '10.191.67.68', '10.191.67.69', '10.191.67.70', '10.191.67.71', '10.191.67.72', '10.191.67.73', '10.191.67.98', '10.191.67.99', '10.191.67.100', '10.191.67.101', '10.191.67.102', '10.191.67.103', '10.191.67.104', '10.191.67.105', '10.191.67.130', '10.191.67.131', '10.191.67.132', '10.191.67.133', '10.191.67.134', '10.191.67.135', '10.191.67.136', '10.191.67.137', '10.191.67.162', '10.191.67.163']
-listafound = []
-listacount = []
-jingas = ""
-u = -1
-x = 0
-reading_file = open("/home/falk/slide3.xml", "r")
-lines = reading_file.readlines()
+re_vlan = re.compile(r"(vlan)")
+match_vlan = [ m.group(1) for m in (re_vlan.search(line) for line in intf_suffix) if m ]
+intf_count = int(len(match_vlan) / 2)
 
-dictionary = dict(zip(listafrom, listato))
-pingas = lines[1]
+# User interaction. Ask questions, get answers. Mostly.
+print('Quantidade de VPC-SI deste site.')
+while True:
+    try:
+        cp_qty = int(input("Entre com o número de UPCIS: "))
+    except ValueError:
+        print("Sorry. Remove boxing gloves")
+        continue
+    if cp_qty < 0:
+        print("Sorry, don't be negative.")
+        continue
+    if cp_qty == 0:
+        print("99 problemas, mas a compute não é 1.")
+        continue
+    else:
+        break
+
+for y in range(cp_qty):
+    u = 1
+    for x in range(intf_count):
+        A_side = (str(u) + '/10')
+        p_side.append(A_side)
+        card.append('card-'+str(u))
+    u = 1
+    for y in range(intf_count):
+        B_side = (str(u) + '/11')
+        p_side.append(B_side)
+        card.append('card-'+str(u))
 
 
-for k,v in dictionary.items():
-    pingas = pingas.replace(k, v)
-print(pingas)
+for y in range(cp_qty):
+    intf_list.append('upf' + str(y+1))
 
-reading_file.close()
+intf_list = [y for x in intf_list for y in (x,)* (len(intf_suffix))]
+intf_suffix = intf_suffix * cp_qty
+intf_list = list(map(''.join, zip(intf_list,intf_suffix)))
+
+
+print(len(intf_suffix))
+print(len(intf_list))
+print(intf_list)
+print(intf_suffix)
+print(len(p_side))
+print(len(card))
+print(p_side)
+print(card)
