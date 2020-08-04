@@ -1,13 +1,20 @@
 #!/usr/bin/python
 import re
-intf_suffix = ['_lte-vlan1', '_lte-vlan2', '_s1-u-vlan1', '_s1-u-vlan2', '_li-vlan1', '_li-vlan2', '_sgi-vlan1', '_sgi-vlan2', '_sgi-v6_vlan1', '_sgi-v6_vlan2', '_sgi_volte-vlan1', '_sgi_volte-vlan2', '_sgi_volte-v6_vlan1', '_sgi_volte-v6_vlan2', '_orion_vlan1', '_orion_vlan2', '_lte-loop', '_pgw-s5-up-loop', '_sgw-s5-up-loop', '_sx-c-up-loop', '_sx-u-up-loop', '_s1u-loop', '_Li-loop', '_sgi-loop', '_sgi_volte-loop', '_orion-loop']
+import csv
+import ipaddress
+
+intf_suffix = ['_lte-vlan1', '_Li-vlan1', '_sgi-vlan1', '_sgi-v6vlan1', '_sgi_volte-vlan1', '_sgi_volte-v6vlan1', '_lte-vlan2', '_Li-vlan2', '_sgi-vlan2', '_sgi-v6vlan2', '_sgi_volte-vlan2', '_sgi_volte-v6vlan2', '_lte-loop', '_pgw-s5-up-loop', '_sgw-s5-up-loop', '_sx-c-up-loop', '_sx-u-up-loop', '_s1u-loop', '_Li-loop', '_sgi-loop', '_sgi_volte-loop', '_orion-loop']
 intf_list = []
-p_side = []
+net_list = []
+side_list = []
 card = []
+host_list = []
 
 re_vlan = re.compile(r"(vlan)")
 match_vlan = [ m.group(1) for m in (re_vlan.search(line) for line in intf_suffix) if m ]
 intf_count = int(len(match_vlan) / 2)
+# Compiles RE from a list, with word boundaries and all
+rel_vlan = re.compile(r'\b(?:%s)\b' % '|'.join(intf_suffix))
 
 # User interaction. Ask questions, get answers. Mostly.
 print('Quantidade de VPC-SI deste site.')
@@ -30,14 +37,13 @@ for y in range(cp_qty):
     u = 1
     for x in range(intf_count):
         A_side = (str(u) + '/10')
-        p_side.append(A_side)
+        side_list.append(A_side)
         card.append('card-'+str(u))
     u = 1
     for y in range(intf_count):
         B_side = (str(u) + '/11')
-        p_side.append(B_side)
+        side_list.append(B_side)
         card.append('card-'+str(u))
-
 
 for y in range(cp_qty):
     intf_list.append('upf' + str(y+1))
@@ -46,12 +52,27 @@ intf_list = [y for x in intf_list for y in (x,)* (len(intf_suffix))]
 intf_suffix = intf_suffix * cp_qty
 intf_list = list(map(''.join, zip(intf_list,intf_suffix)))
 
+with open('/home/falk/swap.csv') as csvfile:
+    reader = csv.reader(csvfile, delimiter=';')
+    for row in reader:
+        vrf_col = row[0]
+        vlan_col = row[1]
+        if rel_vlan.search(vrf_col):
+            match_vrf = re.findall(rel_vlan, vrf_col)
+            try:
+                net_list.append(str(ipaddress.ip_address(vlan_col)))
+            except ValueError:
+                break
 
-print(len(intf_suffix))
-print(len(intf_list))
+for i in range(2, cp_qty + 2):
+    for y in (net_list):
+        host = str(ipaddress.ip_address(y) + i)
+        host_list.append(host)
+
+
+print(net_list)
 print(intf_list)
 print(intf_suffix)
-print(len(p_side))
-print(len(card))
-print(p_side)
+print(side_list)
 print(card)
+print(host_list)
