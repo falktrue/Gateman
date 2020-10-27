@@ -43,7 +43,7 @@ RE_subnet = r"(?<=Sub-rede )[^ ]*"
 RE_description = r"(?<=Descrição: ).+?(?= Default|Vlan:)"
 RE_vlan = r"(?<=Vlan: )[^ ]*"
 RE_gateway = r"(?<=Gateway: )[^ ]*"
-relevant_vrf = re.compile(r"(\bLi\b|S1-U|SIG|SGI_VoLTE|AAA|S11|S5|SGI|APN-UNICA|ORION|External|Public|CIMC|Management|Mgmt|O&M|Local|SRP|\bLTE$)", re.IGNORECASE)
+relevant_vrf = re.compile(r"(\bLi\b|S1-U|SIG|VoLTE|AAA|S11|S5|SGI|APN-UNICA|ORION|External|Public|CIMC|Management|Mgmt|O&M|Local|SRP|\bLTE$)", re.IGNORECASE)
 
 # Dropping some goodies
 Parse_ip = []
@@ -102,9 +102,12 @@ for mask in Parse_ip:
 
 for vrf in Parse_desc:
     match_vrf = re.findall(relevant_vrf, vrf)
-    Parse_vrf.append(''.join(match_vrf))
+    if re.search('volte', vrf, re.I):
+        Parse_vrf.append('SGi_VoLTE')
+    else:
+        Parse_vrf.append(''.join(match_vrf))
 
-with open("D:\samba\parsed.csv", "w") as o:
+with open(r'D:/samba/' + ssd_Numba + '.csv', "w") as o:
     print(r'Description,Network,Netmask,Gateway,VLAN,VRF', file=o)
     for a,b,c,d,e,f in zip(Parse_desc,Parse_ip,Parse_netmask,Interim_gw,Parse_vlan,Parse_vrf):
         print (a + ',' + b + ',' + c + ',' + d + ',' + e + ',' + f, file=o)
@@ -113,7 +116,7 @@ with open("D:\samba\parsed.csv", "w") as o:
 # if it is of /32 length
 # it's a bit shit but I didn't know any better
 
-with open("D:\samba\parsed.csv", "r") as i:
+with open(r'D:/samba/' + ssd_Numba + '.csv', "r") as i:
     reader = csv.reader(i, delimiter=',')
     lenCol = len(next(reader))
     included_cols = [2,3]
@@ -126,7 +129,7 @@ for x in range(len(Lo_check)):
     Parse_gateway.append(re.sub('(/32).*','N/A',Lo_check[x]))
 
 # Show time
-with open(r'D:\samba\parsed.csv', "w") as o:
+with open(r'D:/samba/' + ssd_Numba + '.csv', "w") as o:
     print(r'Description;Network;Netmask;Gateway;VLAN;VRF', file=o)
     for a,b,c,d,e,f in zip(Parse_desc,Parse_ip,Parse_netmask,Parse_gateway,Parse_vlan,Parse_vrf):
         print (a + ';' + b + ';' + c + ';' + d + ';' + e + ';' + f, file=o)
@@ -143,10 +146,12 @@ MASK = []
 netDescription = []
 
 # Regex madness
-relevant_vrf = re.compile(r"(SGI_VoLTE|INTERNET|SGI|APN-UNICA)", re.M|re.I)
+relevant_vrf = re.compile(r"(VoLTE|INTERNET|SGI|APN-UNICA)", re.M|re.I)
 RE_vlan = re.compile(r"(?<=vlan).*$", re.M|re.I)
-RE_slash = re.compile(r"^(.*?)/", re.M|re.I)
+RE_slash = re.compile(r"^(.*?)/64", re.M|re.I)
 RE_desc = re.compile(r"(?<=64)(.*$)", re.M|re.I)
+
+goodItem = 0
 
 # Append stage
 buf = io.StringIO(ipv6Box)
@@ -158,7 +163,10 @@ for i in buf.read().splitlines():
     match_desc = re.findall(RE_desc, i)
     netDescription.append(re.sub(r'(VLAN)(.*$)', '', ''.join(match_desc)).strip())
     VLAN.append(''.join(match_vlan))
-    VRF.append(''.join(match_vrf))
+    if re.search('volte', i, re.I):
+        VRF.append('SGi_VoLTE')
+    else:
+        VRF.append(''.join(match_vrf))
     try:
         Parse_ipv6.append(''.join(match_ipv6))
     except ValueError:
@@ -204,7 +212,7 @@ if len(netDescription) == len(Parse_ipv6) == len(MASK) == len(Gateway) == len(VL
 else:
     print("Something's fucky... (IPv6 Handler)")
 
-with open(r'D:\samba\parsed.csv', "a") as o:
+with open(r'D:/samba/' + ssd_Numba + '.csv', "a") as o:
     # print(r'Description;Network;Netmask;Gateway;VLAN;VRF', file=o)
     for a,b,c,d,e,f in zip(netDescription,Parse_ipv6,MASK,Gateway,VLAN,VRF):
         print (a + ';' + b + ';' + c + ';' + d + ';' + e + ';' + f, file=o)
