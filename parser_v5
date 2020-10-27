@@ -1,0 +1,212 @@
+from requests import Session
+from bs4 import BeautifulSoup as bs
+import os, ssl, re, csv, io
+import ipaddress
+
+# Yes yes very delicious
+# This is the online parser for great emotion
+# it gathers IPv6 off portal as well
+
+ssd_Numba = str(input("Entre com o nº da SSD: "))
+ssd_Url=("https://10.129.198.33/nsed/redes/ssd/ssdview.aspx?id=" + ssd_Numba)
+
+# Disables the fucking warning for SSL certificate expiry
+# Thanks Lugarinho
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+if (not os.environ.get('PYTHONHTTPSVERIFY', '') and getattr(ssl, '_create_unverified_context', None)):
+    ssl._create_default_https_context = ssl._create_unverified_context
+
+with Session() as s:
+    login_data = {"__LASTFOCUS":"","__EVENTTARGET":"","__EVENTARGUMENT":"","__VIEWSTATE":"/wEPDwUKLTU5MjQ5OTk4NGRklgfWV8P76+KyxeCbi6We6zq2M3o=","__VIEWSTATEGENERATOR":"393CE8FD","LoginControl1$UserName":"93222702","LoginControl1$Password":"Falk@033","LoginControl1$LoginButton":"Entrar"}
+    s.post("https://10.129.198.33/nsed/login.aspx", login_data, verify=False)
+    ssd_page = s.get(ssd_Url)
+    soup = bs(ssd_page.text, "html.parser")
+    table = soup.find("table", id="gv1")
+    table6 = soup.find("table", id="gv9")
+    ipv6Box = soup.find("textarea", id="ctl00_ContentPlaceHolder1_editObservacao")
+    ipv6Box = str(ipv6Box.get_text(strip=True, separator=" "))
+    row_data = []
+    for row in table.find_all("tr"):
+        cols = row.find_all("td")
+        cols = [ele.get_text(strip=True, separator=" ") for ele in cols]
+        row_data.append(' '.join(cols))
+    for row in table6.find_all("tr"):
+        cols = row.find_all("td")
+        cols = [ele.get_text(strip=True, separator=" ") for ele in cols]
+        row_data.append(str(' '.join(cols)).replace(' (IP Manager)', ''))
+    print("\nFetching completed.")
+
+# Regex madness
+RE_subnet = r"(?<=Sub-rede )[^ ]*"
+RE_description = r"(?<=Descrição: ).+?(?= Default|Vlan:)"
+RE_vlan = r"(?<=Vlan: )[^ ]*"
+RE_gateway = r"(?<=Gateway: )[^ ]*"
+relevant_vrf = re.compile(r"(\bLi\b|S1-U|SIG|SGI_VoLTE|AAA|S11|S5|SGI|APN-UNICA|ORION|External|Public|CIMC|Management|Mgmt|O&M|Local|SRP|\bLTE$)", re.IGNORECASE)
+
+# Dropping some goodies
+Parse_ip = []
+Parse_desc = []
+Parse_vlan = []
+Interim_gw = []
+Lo_check = []
+Parse_gateway = []
+
+# Derives from the 3 above
+# Don't really exist, per se
+Parse_netmask = []
+Parse_vrf = []
+
+row_data = list(filter(None,row_data))
+
+with open(r'D:\samba\test.txt', "w", encoding="utf_8_sig") as o:
+    for a in row_data:
+        print (a, file=o)
+
+with open(r'D:\samba\test.txt', encoding="utf_8_sig") as myfile:
+    for line in myfile.readlines():
+        match_ip = re.findall(RE_subnet, line, re.M|re.I)
+        match_desc = re.findall(RE_description, line, re.M|re.I)
+        match_vlan = re.findall(RE_vlan, line, re.M|re.I)
+        match_gateway = re.findall(RE_gateway,line,re.M|re.I)
+        Parse_ip.append(''.join(match_ip))
+        Parse_desc.append(''.join(match_desc))
+        Parse_vlan.append(''.join(match_vlan))
+        Interim_gw.append(''.join(match_gateway))
+
+# Clean up bullshit empty values
+
+Parse_ip = list(filter(None,Parse_ip))
+Parse_vlan = list(filter(None,Parse_vlan))
+Parse_desc = list(filter(None,Parse_desc))
+Interim_gw = list(filter(None,Interim_gw))
+
+x = 0
+for i in Parse_ip:
+    x += 1
+    if ipaddress.ip_network(i).version == 6:
+        Interim_gw.insert(x, str(ipaddress.ip_address(re.sub('/.*', '', i))+1))
+
+if len(Parse_ip) == len(Parse_vlan) == len(Parse_desc) == len(Interim_gw):
+    print('No alarms.')
+else:
+    print("Something's fucky...")
+
+# Populates artificial lists
+# Netmask and VRF
+for mask in Parse_ip:
+    le_mask = mask.rfind("/")
+    net_mask = mask[le_mask:]
+    Parse_netmask.append(''.join(net_mask))
+
+for vrf in Parse_desc:
+    match_vrf = re.findall(relevant_vrf, vrf)
+    Parse_vrf.append(''.join(match_vrf))
+
+with open("D:\samba\parsed.csv", "w") as o:
+    print(r'Description,Network,Netmask,Gateway,VLAN,VRF', file=o)
+    for a,b,c,d,e,f in zip(Parse_desc,Parse_ip,Parse_netmask,Interim_gw,Parse_vlan,Parse_vrf):
+        print (a + ',' + b + ',' + c + ',' + d + ',' + e + ',' + f, file=o)
+
+# Second pass, joins mask and gateway
+# if it is of /32 length
+# it's a bit shit but I didn't know any better
+
+with open("D:\samba\parsed.csv", "r") as i:
+    reader = csv.reader(i, delimiter=',')
+    lenCol = len(next(reader))
+    included_cols = [2,3]
+    for row in reader:
+        content = list(row[i] for i in [2,3])
+        if content[0] != '/32': content[0] = ''
+        Lo_check.append(''.join(content))
+
+for x in range(len(Lo_check)):
+    Parse_gateway.append(re.sub('(/32).*','N/A',Lo_check[x]))
+
+# Show time
+with open(r'D:\samba\parsed.csv', "w") as o:
+    print(r'Description;Network;Netmask;Gateway;VLAN;VRF', file=o)
+    for a,b,c,d,e,f in zip(Parse_desc,Parse_ip,Parse_netmask,Parse_gateway,Parse_vlan,Parse_vrf):
+        print (a + ';' + b + ';' + c + ';' + d + ';' + e + ';' + f, file=o)
+
+print("Parsing completed.")
+
+# THIS HERE BE IPV6 HANDLING
+# Dropping some goodies
+Parse_ipv6 = []
+VLAN = []
+VRF = []
+Gateway = []
+MASK = []
+netDescription = []
+
+# Regex madness
+relevant_vrf = re.compile(r"(SGI_VoLTE|INTERNET|SGI|APN-UNICA)", re.M|re.I)
+RE_vlan = re.compile(r"(?<=vlan).*$", re.M|re.I)
+RE_slash = re.compile(r"^(.*?)/", re.M|re.I)
+RE_desc = re.compile(r"(?<=64)(.*$)", re.M|re.I)
+
+# Append stage
+buf = io.StringIO(ipv6Box)
+for i in buf.read().splitlines():
+    # Matchers. Match what, then where
+    match_ipv6 = re.findall(RE_slash, i)
+    match_vrf = re.findall(relevant_vrf, i)
+    match_vlan = re.findall(RE_vlan, i)
+    match_desc = re.findall(RE_desc, i)
+    netDescription.append(re.sub(r'(VLAN)(.*$)', '', ''.join(match_desc)).strip())
+    VLAN.append(''.join(match_vlan))
+    VRF.append(''.join(match_vrf))
+    try:
+        Parse_ipv6.append(''.join(match_ipv6))
+    except ValueError:
+        pass
+
+for i in Parse_ipv6:
+    if i != '':
+        goodItem = (Parse_ipv6.index(i))
+        break
+
+del netDescription[0:goodItem]
+del VRF[0:goodItem]
+del Parse_ipv6[0:goodItem]
+del VLAN[0:goodItem]
+
+for i in Parse_ipv6:
+    if i == '':
+        goodItem = (Parse_ipv6.index(i))
+        break
+
+del netDescription[goodItem:]
+del VRF[goodItem:]
+del Parse_ipv6[goodItem:]
+del VLAN[goodItem:]
+
+for i in Parse_ipv6:
+    MASK.append('/64')
+
+# If it's a loopback range, there's no VLAN,
+# so give it a zero
+VLAN = ["0" if x == '' else x for x in VLAN]
+
+# Calculate and append first address in network
+for c in (Parse_ipv6):
+    try:
+        Gateway_cont = str(ipaddress.ip_address(c) + 1)
+        Gateway.append(Gateway_cont)
+    except ValueError:
+        pass
+
+if len(netDescription) == len(Parse_ipv6) == len(MASK) == len(Gateway) == len(VLAN) == len(VRF):
+    print("No alarms.")
+else:
+    print("Something's fucky... (IPv6 Handler)")
+
+with open(r'D:\samba\parsed.csv', "a") as o:
+    # print(r'Description;Network;Netmask;Gateway;VLAN;VRF', file=o)
+    for a,b,c,d,e,f in zip(netDescription,Parse_ipv6,MASK,Gateway,VLAN,VRF):
+        print (a + ';' + b + ';' + c + ';' + d + ';' + e + ';' + f, file=o)
+
+print("IPv6 handling finished.")
