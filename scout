@@ -1,0 +1,86 @@
+from chrometings import driver, stopDriver
+from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import StaleElementReferenceException
+from bs4 import BeautifulSoup as bs
+import time
+
+class GoScout:
+    def __init__(self, prof):
+        self.prof = prof
+
+    def startup(prof):
+        url = ('https://www.linkedin.com/in/' + prof)
+        driver.implicitly_wait(5)
+        driver.get(url)
+
+    def about():
+        driver.execute_script("window.scrollTo(0, 20)")
+        try:
+            driver.find_element_by_partial_link_text("lizar mais").click()
+        except NoSuchElementException:
+            print('Raised "sierrafoxtrot" exception.')
+            pass
+        soup = bs(driver.page_source, "html.parser")
+        spansAbout = soup.find('span', attrs={'class': 'lt-line-clamp__raw-line'})  # or span by class name
+        for br in spansAbout('br'):
+            br.replace_with('\n')
+        about = spansAbout.text
+        print(about)
+
+    def experience():
+        tries = 0
+        while tries < 4:
+            try:
+                experia = driver.find_element_by_xpath(
+                    "//button[@class='pv-profile-section__see-more-inline pv-profile-section__text-truncate-toggle link-without-visited-state']")
+                experia.click()
+            except StaleElementReferenceException:
+                pass
+            except NoSuchElementException:
+                pass
+            tries += 1
+
+        soup = bs(driver.page_source, "html.parser")
+        jobSummary = soup.find_all('div', attrs={
+            'class': 'pv-entity__summary-info pv-entity__summary-info--background-section mb2'})
+        jobSummary = [[ele.get_text(strip=True, separator=";")] for ele in jobSummary]
+        jobSummary = [ele[0].split(';') for ele in jobSummary]
+        for i in jobSummary:
+            print(i)
+
+    def education():
+        soup = bs(driver.page_source, "html.parser")
+        eduCation = soup.find_all('a', attrs={'data-control-name': 'background_details_school'})
+        eduCation = [[ele.get_text(strip=True, separator=";")] for ele in eduCation]
+        eduCation = [ele[0].split(';') for ele in eduCation]
+        print(eduCation)
+
+    def certs():
+        soup = bs(driver.page_source, "html.parser")
+        certs = soup.find_all('div', attrs={
+            'class': 'pv-certifications__summary-info pv-entity__summary-info pv-entity__summary-info--background-section'})
+        certs = [[ele.get_text(strip=True, separator=";")] for ele in certs]
+        certs = [ele[0].split(';') for ele in certs]
+        if len(certs) == 0:
+            print('Certificações não encontradas/preenchidas pelo usuário.')
+        else:
+            print(certs)
+
+    def contact():
+        driver.execute_script("window.scrollTo(0, 20)")
+        driver.find_element_by_partial_link_text("de contato").click()
+        time.sleep(1)
+        soup = bs(driver.page_source, "html.parser")
+        contax = soup.find_all('div', attrs={'class': 'pv-profile-section__section-info section-info'})
+        contax = [ele.get_text(strip=True, separator=";") for ele in contax]
+        contax = [ele.split(';') for ele in contax]
+        contax = contax[0]
+        print(contax)
+
+
+GoScout.startup('ruan-pomponet')
+GoScout.about()
+GoScout.experience()
+GoScout.education()
+GoScout.certs()
+GoScout.contact()
