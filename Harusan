@@ -1,0 +1,170 @@
+# eduCation
+
+soup = bs(driver.page_source, "html.parser")
+eduCation = soup.find_all('a', attrs={'data-control-name': 'background_details_school'})
+eduCation = [[ele.get_text(strip=True, separator=";")] for ele in eduCation]
+eduCation = [ele[0].split(';') for ele in eduCation]
+
+data = '{{"instituicaoEnsino":"{}","diploma":"{}","areaDeEstudo":"{}","inicio":"{}-01-01T00:00:00.000Z","fim":"{}-01-01T00:00:00.000Z"}}'
+
+for i in eduCation:
+    instit = i[0]
+    diplo = i[2]
+    area = i[4]
+    print(instit, diplo, area)
+    for g in i:
+        if 'Período' in g:
+            init = i.index(g) + 1
+            init = i[init]
+            fini = i.index(g) + 3
+            fini = i[fini]
+            print(init, '-', fini)
+    buffer += data.format(instit, diplo, area, init, fini) + ','
+
+encaps = '[{}]'
+buffer = buffer[:-1]
+buffer = encaps.format(buffer)
+obj = json.loads(buffer)
+frmt = json.dumps(obj, indent=2, ensure_ascii=False)
+print(frmt)
+
+!
+try:
+    lingo = driver.find_element_by_xpath("//section[@class='pv-profile-section pv-accomplishments-block languages ember-view']/descendant::button")
+    driver.execute_script("arguments[0].scrollIntoView(true); window.scrollBy(0, -window.innerHeight / 2);", lingo)
+    lingo.click()
+    soup = bs(driver.page_source, "html.parser")
+    languages = soup.find_all('div', attrs={'id': 'languages-expandable-content'})
+    languages = [ele.get_text(strip=True, separator=";") for ele in languages]
+    languages = [ele.split(';') for ele in languages]
+    languages = languages[0]
+
+    while 'Idioma' in languages:
+        languages.remove('Idioma')
+    set = []
+    pairs = []
+    x = 0
+    for i in languages:
+        set.append(i)
+        x += 1
+        if x == 2:
+            pairs.append(set)
+            x = 0
+            set = []
+    languages = pairs
+
+except ElementNotInteractableException:
+    languages = [['n/a', 'n/a']]
+
+buffer = ''
+data = '{{"titulo":"{}","nivel":"{}"}}'
+for i in languages:
+    buffer += data.format(i[0], i[1]) + ','
+
+
+!
+courses = driver.find_element_by_xpath("//section[@class='pv-profile-section pv-accomplishments-block courses ember-view']/descendant::button")
+driver.execute_script("arguments[0].scrollIntoView(true); window.scrollBy(0, -window.innerHeight / 2);", courses)
+courses.click()
+
+tries = 0
+while tries < 4:
+    try:
+        seamus = driver.find_element_by_xpath(
+            "//div[@id='courses-expandable-content']/descendant::button[contains(text(),'mais')]")
+        seamus.click()
+    except StaleElementReferenceException:
+        pass
+    except NoSuchElementException:
+        pass
+    print('cric')
+    tries += 1
+soup = bs(driver.page_source, "html.parser")
+courses = soup.find_all('h4', attrs={'class': 'pv-accomplishment-entity__title t-14 t-bold'})
+for i in courses:
+  i.span.clear()
+courses = [ele.get_text(strip=True) for ele in courses]
+!
+
+driver.execute_script("window.scrollTo(0, 20)")
+driver.find_element_by_partial_link_text("de contato").click()
+time.sleep(1)
+soup = bs(driver.page_source, "html.parser")
+contax = soup.find_all('div', attrs={'class': 'pv-profile-section__section-info section-info'})
+contax = [ele.get_text(strip=True, separator=";") for ele in contax]
+contax = [ele.split(';') for ele in contax]
+contax = contax[0]
+print(contax)
+
+try:
+    nivr = [contax.index(i) for i in contax if 'niver' in i][0] + 1
+    nivr = contax[nivr]
+except IndexError:
+    nivr = 'n/a'
+    pass
+
+try:
+    mail = [contax.index(i) for i in contax if 'E-mail' in i][0] + 1
+    mail = contax[mail]
+except IndexError:
+    mail = 'n/a'
+    pass
+
+try:
+    phon = [contax.index(i) for i in contax if 'Residen' in i][0] - 1
+    phon = contax[phon]
+except IndexError:
+    phon = 'n/a'
+    pass
+
+try:
+    celu = [contax.index(i) for i in contax if 'Celular' in i][0] - 1
+    celu = contax[celu]
+except IndexError:
+    celu = 'n/a'
+    pass
+
+try:
+    blog = [contax.index(i) for i in contax if 'Blog' in i][0] - 1
+    blog = contax[blog]
+except IndexError:
+    blog = 'n/a'
+    pass
+
+driver.execute_script("window.scrollTo(0, 20)")
+soup = bs(driver.page_source, "html.parser")
+nombre = soup.find('ul', attrs={'class': 'pv-top-card--list inline-flex align-items-center'})
+nombre.span.clear()
+locale = soup.find('li', attrs={'class': 't-16 t-black t-normal inline-block'})
+nombre = nombre.get_text(strip=True)
+locale = locale.get_text(strip=True, separator=",")
+locale = locale.split(',')
+city = locale[0]
+state = locale[1]
+country = locale[2]
+print(city, state, country)
+
+for v, i in enumerate(dateList):
+    y = i[-4:]
+    d = i[:2]
+    m = i[3:5]
+    dashedDate = (y + '-' + m + '-' + d)
+    dateList[v] = dashedDate
+
+movParse = '''<MovimentacaoTJ>
+<ficha>{}</ficha>
+              <incidente>0</incidente>
+              <inserido>2020-11-25 12:00:00</inserido>
+              <ocorrido>{} 12:00:00</ocorrido>
+              <tipo>{}</tipo>
+              <texto></texto>
+</MovimentacaoTJ>'''
+
+for i in range(len(descList)):
+    varis.movBody += movParse.format(ficha, dateList[i], descList[i])
+
+return varis.movBody
+
+orgs = driver.find_element_by_xpath("//section[@class='pv-profile-section pv-accomplishments-block organizations ember-view']/descendant::button")
+projs = driver.find_element_by_xpath("//section[@class='pv-profile-section pv-accomplishments-block projects ember-view']/descendant::button")
+pubs = driver.find_element_by_xpath("//section[@class='pv-profile-section pv-accomplishments-block publications ember-view']/descendant::button")
