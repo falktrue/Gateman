@@ -1,91 +1,26 @@
-# eduCation
+from chrometings import driver, stopDriver
+from selenium.common.exceptions import NoSuchElementException, ElementNotInteractableException, StaleElementReferenceException
+from selenium.webdriver.common.keys import Keys
+from bs4 import BeautifulSoup as bs
+import time, json
 
-soup = bs(driver.page_source, "html.parser")
-eduCation = soup.find_all('a', attrs={'data-control-name': 'background_details_school'})
-eduCation = [[ele.get_text(strip=True, separator=";")] for ele in eduCation]
-eduCation = [ele[0].split(';') for ele in eduCation]
+def startup(prof):
+    print('Here')
+    url = ('https://www.linkedin.com/in/' + prof)
+    driver.implicitly_wait(1)
+    driver.get(url)
 
-data = '{{"instituicaoEnsino":"{}","diploma":"{}","areaDeEstudo":"{}","inicio":"{}-01-01T00:00:00.000Z","fim":"{}-01-01T00:00:00.000Z"}}'
+    html = driver.find_element_by_tag_name('html')
+    html.send_keys(Keys.END)
+    html.send_keys(Keys.END)
+    time.sleep(1)
+    html.send_keys(Keys.END)
+    time.sleep(1)
 
-for i in eduCation:
-    instit = i[0]
-    diplo = i[2]
-    area = i[4]
-    print(instit, diplo, area)
-    for g in i:
-        if 'Período' in g:
-            init = i.index(g) + 1
-            init = i[init]
-            fini = i.index(g) + 3
-            fini = i[fini]
-            print(init, '-', fini)
-    buffer += data.format(instit, diplo, area, init, fini) + ','
+startup('fernandovillelaad')
+year, month, day, hour, min = map(int, time.strftime("%Y %m %d %H %M").split())
 
-encaps = '[{}]'
-buffer = buffer[:-1]
-buffer = encaps.format(buffer)
-obj = json.loads(buffer)
-frmt = json.dumps(obj, indent=2, ensure_ascii=False)
-print(frmt)
-
-!
-try:
-    lingo = driver.find_element_by_xpath("//section[@class='pv-profile-section pv-accomplishments-block languages ember-view']/descendant::button")
-    driver.execute_script("arguments[0].scrollIntoView(true); window.scrollBy(0, -window.innerHeight / 2);", lingo)
-    lingo.click()
-    soup = bs(driver.page_source, "html.parser")
-    languages = soup.find_all('div', attrs={'id': 'languages-expandable-content'})
-    languages = [ele.get_text(strip=True, separator=";") for ele in languages]
-    languages = [ele.split(';') for ele in languages]
-    languages = languages[0]
-
-    while 'Idioma' in languages:
-        languages.remove('Idioma')
-    set = []
-    pairs = []
-    x = 0
-    for i in languages:
-        set.append(i)
-        x += 1
-        if x == 2:
-            pairs.append(set)
-            x = 0
-            set = []
-    languages = pairs
-
-except ElementNotInteractableException:
-    languages = [['n/a', 'n/a']]
-
-buffer = ''
-data = '{{"titulo":"{}","nivel":"{}"}}'
-for i in languages:
-    buffer += data.format(i[0], i[1]) + ','
-
-
-!
-courses = driver.find_element_by_xpath("//section[@class='pv-profile-section pv-accomplishments-block courses ember-view']/descendant::button")
-driver.execute_script("arguments[0].scrollIntoView(true); window.scrollBy(0, -window.innerHeight / 2);", courses)
-courses.click()
-
-tries = 0
-while tries < 4:
-    try:
-        seamus = driver.find_element_by_xpath(
-            "//div[@id='courses-expandable-content']/descendant::button[contains(text(),'mais')]")
-        seamus.click()
-    except StaleElementReferenceException:
-        pass
-    except NoSuchElementException:
-        pass
-    print('cric')
-    tries += 1
-soup = bs(driver.page_source, "html.parser")
-courses = soup.find_all('h4', attrs={'class': 'pv-accomplishment-entity__title t-14 t-bold'})
-for i in courses:
-  i.span.clear()
-courses = [ele.get_text(strip=True) for ele in courses]
-!
-
+# INFO BLOC
 driver.execute_script("window.scrollTo(0, 20)")
 driver.find_element_by_partial_link_text("de contato").click()
 time.sleep(1)
@@ -94,7 +29,6 @@ contax = soup.find_all('div', attrs={'class': 'pv-profile-section__section-info 
 contax = [ele.get_text(strip=True, separator=";") for ele in contax]
 contax = [ele.split(';') for ele in contax]
 contax = contax[0]
-print(contax)
 
 try:
     nivr = [contax.index(i) for i in contax if 'niver' in i][0] + 1
@@ -125,10 +59,24 @@ except IndexError:
     pass
 
 try:
-    blog = [contax.index(i) for i in contax if 'Blog' in i][0] - 1
+    blog = [contax.index(i) for i in contax if 'blog' in i.lower()][0] - 1
     blog = contax[blog]
 except IndexError:
     blog = 'n/a'
+    pass
+
+try:
+    git = [contax.index(i) for i in contax if 'github' in i.lower()][0] - 1
+    git = contax[git]
+except IndexError:
+    git = 'n/a'
+    pass
+
+try:
+    twtr = [contax.index(i) for i in contax if 'twitter' in i.lower()][0] + 1
+    twtr = contax[twtr]
+except IndexError:
+    twtr = 'n/a'
     pass
 
 driver.execute_script("window.scrollTo(0, 20)")
@@ -138,33 +86,163 @@ nombre.span.clear()
 locale = soup.find('li', attrs={'class': 't-16 t-black t-normal inline-block'})
 nombre = nombre.get_text(strip=True)
 locale = locale.get_text(strip=True, separator=",")
-locale = locale.split(',')
-city = locale[0]
-state = locale[1]
-country = locale[2]
-print(city, state, country)
 
-for v, i in enumerate(dateList):
-    y = i[-4:]
-    d = i[:2]
-    m = i[3:5]
-    dashedDate = (y + '-' + m + '-' + d)
-    dateList[v] = dashedDate
+data = '{{"nome":"{}","local":"{}","celular":"{}","telefone":"{}","dataNascimento":"{}","email":"{}","blog":"{}","gitHub":"{}","Twitter":"{}"}}'
+infoJSON = data.format(nombre, locale, celu, phon, nivr, mail, blog, git, twtr)
 
-movParse = '''<MovimentacaoTJ>
-<ficha>{}</ficha>
-              <incidente>0</incidente>
-              <inserido>2020-11-25 12:00:00</inserido>
-              <ocorrido>{} 12:00:00</ocorrido>
-              <tipo>{}</tipo>
-              <texto></texto>
-</MovimentacaoTJ>'''
+shut = driver.find_element_by_xpath("//div[@class='artdeco-modal artdeco-modal--layer-default ']/descendant::button")
+shut.click()
 
-for i in range(len(descList)):
-    varis.movBody += movParse.format(ficha, dateList[i], descList[i])
+# EDUCATION BLOC
+soup = bs(driver.page_source, "html.parser")
+eduCation = soup.find_all('a', attrs={'data-control-name': 'background_details_school'})
+eduCation = [[ele.get_text(strip=True, separator=";")] for ele in eduCation]
+eduCation = [ele[0].split(';') for ele in eduCation]
 
-return varis.movBody
+buffer = ''
+data = '{{"instituicaoEnsino":"{}","diploma":"{}","areaDeEstudo":"{}","inicio":"{}-01-01T00:00:00.000Z","fim":"{}-01-01T00:00:00.000Z"}}'
 
-orgs = driver.find_element_by_xpath("//section[@class='pv-profile-section pv-accomplishments-block organizations ember-view']/descendant::button")
-projs = driver.find_element_by_xpath("//section[@class='pv-profile-section pv-accomplishments-block projects ember-view']/descendant::button")
-pubs = driver.find_element_by_xpath("//section[@class='pv-profile-section pv-accomplishments-block publications ember-view']/descendant::button")
+for i in eduCation:
+    instit = i[0]
+    diplo = i[2]
+    area = i[4]
+    print(instit, diplo, area)
+    for g in i:
+        if 'Período' in g:
+            init = i.index(g) + 1
+            init = i[init]
+            fini = i.index(g) + 3
+            fini = i[fini]
+            print(init, '-', fini)
+    buffer += data.format(instit, diplo, area, init, fini) + ','
+
+buffer = buffer[:-1]
+eduJSON = buffer
+
+# LINGO BLOC
+try:
+    # lingo = driver.find_element_by_xpath("//section[@class='pv-profile-section pv-accomplishments-block languages ember-view']/descendant::button")
+    lingo = driver.find_element_by_xpath("//*[contains(@class, 'language')]/descendant::button")
+    driver.execute_script("arguments[0].scrollIntoView(true); window.scrollBy(0, -window.innerHeight / 2);", lingo)
+    lingo.click()
+    soup = bs(driver.page_source, "html.parser")
+    languages = soup.find_all('div', attrs={'id': 'languages-expandable-content'})
+    languages = [ele.get_text(strip=True, separator=";") for ele in languages]
+    languages = [ele.split(';') for ele in languages]
+    languages = languages[0]
+
+    while 'Idioma' in languages:
+        languages.remove('Idioma')
+    set = []
+    pairs = []
+    x = 0
+    for i in languages:
+        set.append(i)
+        x += 1
+        if x == 2:
+            pairs.append(set)
+            x = 0
+            set = []
+    languages = pairs
+
+except NoSuchElementException:
+    languages = [['n/a', 'n/a']]
+
+buffer = ''
+data = '{{"titulo":"{}","nivel":"{}"}}'
+for i in languages:
+    buffer += data.format(i[0], i[1]) + ','
+lingoJSON = buffer[:-1]
+
+
+# EXPERIENCE BLOC
+
+html = driver.find_element_by_tag_name('html')
+html.send_keys(Keys.HOME)
+
+tries = 0
+while tries < 4:
+    try:
+        experia = driver.find_element_by_xpath(
+            "//button[@class='pv-profile-section__see-more-inline pv-profile-section__text-truncate-toggle link-without-visited-state']")
+        driver.execute_script("arguments[0].scrollIntoView(true); window.scrollBy(0, -window.innerHeight / 2);",
+                              experia)
+        experia.click()
+    except StaleElementReferenceException:
+        pass
+    except NoSuchElementException:
+        pass
+    print('cric')
+    tries += 1
+
+soup = bs(driver.page_source, "html.parser")
+jobSummary = soup.find_all('li', attrs={
+    'class': 'pv-entity__position-group-pager pv-profile-section__list-item ember-view'})
+jobSummary = [[ele.get_text(strip=True, separator=";")] for ele in jobSummary]
+jobSummary = [ele[0].split(';') for ele in jobSummary]
+
+year, month, day, hour, min = map(int, time.strftime("%Y %m %d %H %M").split())
+buffer = ''
+for i in jobSummary:
+    descriptionEnd = []
+    # empty BS blanks
+    i = list(filter(None, i))
+    company = [i[i.index(g) + 1] for g in i if 'Nome da empr' in g][0]
+    type = [i[i.index(g) - 1] for g in i if 'Período do emprego' in g][0]
+
+    for g in i:
+        if 'Nome da empr' in g:
+            rank = i.index(g)
+            if rank != 0:
+                rank = (i[rank - 1])
+            elif rank == 0:
+                rank = i[i.index('Cargo') + 1]
+    for g in i:
+        if 'Período' in g:
+            ref = i.index(g) + 1
+            init = i[ref][8:12]
+            fini = i[ref][-4:]
+            if fini == 'ento':
+                fini = year
+
+    # use Locale to commence job descriptor
+    descriptionStart = [i + 2 for i, x in enumerate(i) if x == "Localidade"]
+    # size is the same, meaning no job description
+    try:
+        if descriptionStart[0] == len(i):
+            jobAbout = 'n/a'
+        else:
+            # not the same, lookup "Cargo" and count
+            descMarker = [i + 9 for i, x in enumerate(i) if x == "Cargo"]
+            if len(descMarker) > 1:
+                # get first job descriptor and fuck the rest, minus 9 to trim excess
+                jobAbout = i[descMarker[0]:descMarker[1] - 11]
+            else:
+                # cases in which you have to use Locale til end of list
+                jobAbout = i[descriptionStart[0]:-2]
+
+        if jobAbout != 'n/a':
+            jobAbout = ' '.join(str(i) for i in jobAbout)
+        print(jobAbout)
+    except IndexError:
+        descMarker = [i + 2 for i, x in enumerate(i) if x == "Duração"]
+        jobAbout = i[descMarker[0]:]
+        if jobAbout != 'n/a':
+            jobAbout = ' '.join(str(i) for i in jobAbout)
+        if not jobAbout:
+            jobAbout = 'n/a'
+        print(jobAbout, 'my balls')
+        pass
+
+    data = '{{"nivel":"{}","titulo":"{}","descricao":"{}","empresa":"{}","dataInicio":"{}-01-01T00:00:00.000Z","dataFim":"{}-01-01T00:00:00.000Z"}}'
+    buffer += data.format(type, rank, jobAbout, company, init, fini) + ','
+
+buffer = buffer[:-1]
+jobJSON = buffer
+
+treeJSON = '{{"info":[{}],"educacoes":[{}],"experiencias":[{}],"idiomas":[{}]}}'
+
+test = treeJSON.format(infoJSON, eduJSON, jobJSON, lingoJSON)
+test = json.loads(test)
+test = json.dumps(test, indent=2, ensure_ascii=False)
+print(test)
