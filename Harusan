@@ -5,10 +5,19 @@ from bs4 import BeautifulSoup as bs
 import time, json
 
 def startup(prof):
+    login = ''
+    password = ''
     print('Here')
+    print('Driver title is:', driver.title)
     url = ('https://www.linkedin.com/in/' + prof)
     driver.implicitly_wait(1)
     driver.get(url)
+    if driver.title == 'Sign Up | LinkedIn':
+        print('Logging in for you.')
+        driver.find_element_by_partial_link_text("Sign in").click()
+        driver.find_element_by_xpath("//input[@type='text']").send_keys(login)
+        driver.find_element_by_xpath("//input[@type='password']").send_keys(password)
+        driver.find_element_by_xpath("//button[@id='login-submit']").click()
 
     html = driver.find_element_by_tag_name('html')
     html.send_keys(Keys.END)
@@ -17,7 +26,11 @@ def startup(prof):
     html.send_keys(Keys.END)
     time.sleep(1)
 
-startup('fernandovillelaad')
+# startup('fernandovillelaad')
+startup('pedromarins')
+# startup('ruan-pomponet')
+
+
 year, month, day, hour, min = map(int, time.strftime("%Y %m %d %H %M").split())
 
 # INFO BLOC
@@ -106,14 +119,14 @@ for i in eduCation:
     instit = i[0]
     diplo = i[2]
     area = i[4]
-    print(instit, diplo, area)
+    # print(instit, diplo, area)
     for g in i:
         if 'Período' in g:
             init = i.index(g) + 1
             init = i[init]
             fini = i.index(g) + 3
             fini = i[fini]
-            print(init, '-', fini)
+            # print(init, '-', fini)
     buffer += data.format(instit, diplo, area, init, fini) + ','
 
 buffer = buffer[:-1]
@@ -223,7 +236,7 @@ for i in jobSummary:
 
         if jobAbout != 'n/a':
             jobAbout = ' '.join(str(i) for i in jobAbout)
-        print(jobAbout)
+        # print(jobAbout)
     except IndexError:
         descMarker = [i + 2 for i, x in enumerate(i) if x == "Duração"]
         jobAbout = i[descMarker[0]:]
@@ -231,7 +244,7 @@ for i in jobSummary:
             jobAbout = ' '.join(str(i) for i in jobAbout)
         if not jobAbout:
             jobAbout = 'n/a'
-        print(jobAbout, 'my balls')
+        # print(jobAbout, 'my balls')
         pass
 
     data = '{{"nivel":"{}","titulo":"{}","descricao":"{}","empresa":"{}","dataInicio":"{}-01-01T00:00:00.000Z","dataFim":"{}-01-01T00:00:00.000Z"}}'
